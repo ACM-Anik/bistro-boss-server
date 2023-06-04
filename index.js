@@ -210,7 +210,7 @@ async function run() {
 
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
-                currency: 'usd',
+                currency: 'inr',
                 payment_method_types: ['card']
             });
             res.send({
@@ -227,6 +227,36 @@ async function run() {
             const deleteResult = await cartCollection.deleteMany(query);
 
             res.send({insertResult, deleteResult});
+        })
+
+        app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
+            const users = await userCollection.estimatedDocumentCount();
+            const products = await menuCollection.estimatedDocumentCount();
+            const orders = await paymentCollection.estimatedDocumentCount();
+
+            // Best way to get sum of the price field is to use group and sum operator
+
+            /* 
+            await paymentCollection.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: '$price' }
+                    }
+                }
+            ]).toArray()
+            */
+
+            const payments = await paymentCollection.find().toArray();
+            const total = payments.reduce((sum, payment) => sum + payment.price, 0);
+            const revenue = parseFloat(total.toFixed(2))
+
+            res.send({
+                revenue,
+                users,
+                products,
+                orders
+            })
         })
 
 
