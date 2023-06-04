@@ -259,6 +259,51 @@ async function run() {
             })
         })
 
+        /**
+         * ---------------------------------------
+         *   BANGLA SYSTEM (Second best solution)
+         * ---------------------------------------
+         * 1. Load all payments
+         * 2. For each payment, get the menuItems array
+         * 3. For each item in the menuItems array get the menuItem from the menuCollection
+         * 4. Put them in an array: allOrderedItems
+         * 5. Separate allOrderedItems by category using filter
+         * 6. Now each category use reduce to get the total amount spent on the category.
+         */
+
+        app.get('/order-stats', verifyJWT, verifyAdmin, async (req, res) => {
+            const pipeline = [
+                {
+                  $lookup: {
+                    from: 'menu',
+                    localField: 'menuItems',
+                    foreignField: '_id',
+                    as: 'menuItemsData'
+                  }
+                },
+                {
+                  $unwind: '$menuItemsData'
+                },
+                {
+                  $group: {
+                    _id: '$menuItemsData.category',
+                    count: { $sum: 1 },
+                    total: { $sum: '$menuItemsData.price' }
+                  }
+                },
+                {
+                  $project: {
+                    category: '$_id',
+                    count: 1,
+                    total: { $round: ['$total', 2] },
+                    _id: 0
+                  }
+                }
+            ];  
+            const result = await paymentCollection.aggregate(pipeline).toArray();
+            res.send(result);
+        })
+
 
 
         // Send a ping to confirm a successful connection
